@@ -4,16 +4,17 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/pedroalbanese/bzip2)](https://goreportcard.com/report/github.com/pedroalbanese/bzip2)
 ### Command:
 <pre>Usage: bzip2 [OPTION]... [FILE]
-Compress or uncompress FILE (by default, compress FILE in-place).
-
+Usage of bzip2:
   -c    write on standard output, keep original files unchanged
+  -cores int
+        number of cores to use for parallelization (default 1)
   -d    decompress; see also -c and -k
   -f    force overwrite of output file
   -h    print this help message
   -k    keep original files unchaned
   -s string
-        use provided suffix on compressed files (default "brotli")
-
+        use provided suffix on compressed files (default "bzip2")
+        
 With no FILE, or when FILE is -, read standard input.</pre>
 
 ## License
