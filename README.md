@@ -18,6 +18,6 @@ With no FILE, or when FILE is -, read standard input.</pre>
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the ISC License.
 
 ##### Copyright (c) 2020-2021 Pedro Albanese - ALBANESE Research Lab.
