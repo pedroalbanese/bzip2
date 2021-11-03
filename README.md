@@ -11,7 +11,7 @@ Usage of bzip2:
   -d    decompress; see also -c and -k
   -f    force overwrite of output file
   -h    print this help message
-  -k    keep original files unchaned
+  -k    keep original files unchanged
   -s string
         use provided suffix on compressed files (default "bzip2")
         
