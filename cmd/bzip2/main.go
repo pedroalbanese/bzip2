@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 
 	"github.com/dsnet/compress/bzip2"
@@ -20,8 +21,8 @@ var (
 	decompress = flag.Bool("d", false, "decompress; see also -c and -k")
 	force      = flag.Bool("f", false, "force overwrite of output file")
 	help       = flag.Bool("h", false, "print this help message")
-	keep       = flag.Bool("k", false, "keep original files unchanged")
-	suffix     = flag.String("s", "bzip2", "use provided suffix on compressed files")
+	keep       = flag.Bool("k", false, "keep original files unchaned")
+	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 1, "number of cores to use for parallelization")
 
 	stdin bool
