@@ -15,7 +15,7 @@ Usage of bzip2:
   -h    print this help message
   -k    keep original files unchanged
   -s string
-        use provided suffix on compressed files (default "bzip2")
+        use provided suffix on compressed files (default "bz2")
         
 With no FILE, or when FILE is -, read standard input.</pre>
 
