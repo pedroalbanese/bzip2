@@ -6,17 +6,18 @@
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/pedroalbanese/bzip2)](https://github.com/pedroalbanese/bzip2/releases)
 ### Command:
 <pre>Usage: bzip2 [OPTION]... [FILE]
-Usage of bzip2:
+Compress or uncompress FILE (by default, compress FILE in-place).
+
   -c    write on standard output, keep original files unchanged
   -cores int
         number of cores to use for parallelization (default 1)
   -d    decompress; see also -c and -k
   -f    force overwrite of output file
   -h    print this help message
-  -k    keep original files unchanged
+  -k    keep original files unchaned
   -s string
         use provided suffix on compressed files (default "bz2")
-        
+
 With no FILE, or when FILE is -, read standard input.</pre>
 
 ## License
