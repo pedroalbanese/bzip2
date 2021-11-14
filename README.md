@@ -1,5 +1,5 @@
 # bzip2(2)
-[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](https://github.com/pedroalbanese/bzip2/blob/master/LICENSE) 
+[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](https://github.com/pedroalbanese/bzip2/blob/master/LICENSE.md) 
 [![GoDoc](https://godoc.org/github.com/pedroalbanese/bzip2?status.png)](http://godoc.org/github.com/pedroalbanese/bzip2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pedroalbanese/bzip2)](https://goreportcard.com/report/github.com/pedroalbanese/bzip2)
 [![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/pedroalbanese/bzip2)](https://golang.org)
