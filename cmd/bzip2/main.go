@@ -56,7 +56,7 @@ func main() {
 		usage()
 		log.Fatal(0)
 	}
-	//if *stdout == true && *suffix != "bzip2" {
+	//if *stdout == true && *suffix != "bz2" {
 	if *stdout == true && setByUser("s") == true {
 		exit("stdout set, suffix not used")
 	}
