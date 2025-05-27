@@ -13,6 +13,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"strconv"
 
 	"github.com/dsnet/compress/bzip2"
 )
@@ -25,9 +26,9 @@ var (
 	keep       = flag.Bool("k", false, "keep original files unchaned")
 	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 1, "number of cores to use for parallelization")
-	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 	test       = flag.Bool("t", false, "test compressed file integrity")
 	compress   = flag.Bool("z", true, "compress file(s); implies -f and -k if not set")
+	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 
 	stdin bool
 )
@@ -55,10 +56,28 @@ func setByUser(name string) (isSet bool) {
 }
 
 func main() {
+	// Levels.
+	// This is terrible. Don't blame it on me,
+	// blame it on the flag package designers.
+	// Perhaps Pedro would like to review it further.
+	for i := 1; i <= 9; i++ {
+		_ = flag.Bool(strconv.Itoa(i), false,
+		("set block size to" + strconv.Itoa((i * 100)) + "k"))
+	}
 	flag.Parse()
 
+	// Check if someone has used '-#' for a compression level.
+	if !setByUser("l") {
+		for i := 1; i <= 9; i++ {
+			if setByUser(strconv.Itoa(i)) {
+				*level = i
+				break
+			}
+		}
+	}
+
 	if *level < 1 || *level > 9 {
-	exit("invalid compression level: must be between 1 and 9")
+		exit("invalid compression level: must be between 1 and 9")
 	}
 
 	if *help == true {
