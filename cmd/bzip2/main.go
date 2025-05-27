@@ -61,11 +61,8 @@ func main() {
 	exit("invalid compression level: must be between 1 and 9")
 	}
 
-	if *compress {
-		if !setByUser("f") {
-			*force = true
-		}
-	}
+//	if *compress {
+//	}
 		
 	if *help == true {
 		usage()
