@@ -16,8 +16,12 @@ Compress or uncompress FILE (by default, compress FILE in-place).
   -f    force overwrite of output file
   -h    print this help message
   -k    keep original files unchaned
+  -l int
+        compression level (1 = fastest, 9 = best) (default 9)
   -s string
         use provided suffix on compressed files (default "bz2")
+  -t    test compressed file integrity
+  -z    compress file(s); implies -f and -k if not set
 
 With no FILE, or when FILE is -, read standard input.</pre>
 
