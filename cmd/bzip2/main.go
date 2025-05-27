@@ -65,9 +65,6 @@ func main() {
 		if !setByUser("f") {
 			*force = true
 		}
-		if !setByUser("k") {
-			*keep = true
-		}
 	}
 		
 	if *help == true {
