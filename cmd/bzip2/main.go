@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"rsc.io/getopt"
 	"github.com/dsnet/compress/bzip2"
 )
 
@@ -36,7 +37,7 @@ var (
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... [FILE]\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "Compress or uncompress FILE (by default, compress FILE in-place).\n\n")
-	flag.PrintDefaults()
+	getopt.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nWith no FILE, or when FILE is -, read standard input.\n")
 }
 
@@ -68,7 +69,7 @@ func main() {
 		}
 		_ = flag.Bool(strconv.Itoa(i), false, explanation)
 	}
-	flag.Parse()
+	getopt.Parse()
 
 	// Check if someone has used '-#' for a compression level.
 	if !setByUser("l") {
