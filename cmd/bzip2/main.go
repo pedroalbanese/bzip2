@@ -1,6 +1,6 @@
 // Copyright (c) 2010, Andrei Vieru. All rights reserved.
 // Copyright (c) 2021, Pedro Albanese. All rights reserved.
-// Use of this source code is governed by a ISC license that 
+// Use of this source code is governed by a ISC license that
 // can be found in the LICENSE file.
 package main
 
@@ -27,7 +27,7 @@ var (
 	cores      = flag.Int("cores", 1, "number of cores to use for parallelization")
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 	test       = flag.Bool("t", false, "test compressed file integrity")
-	compress   = flag.Bool("z", false, "compress file(s); implies -f and -k if not set")
+	compress   = flag.Bool("z", true, "compress file(s); implies -f and -k if not set")
 
 	stdin bool
 )
@@ -56,19 +56,17 @@ func setByUser(name string) (isSet bool) {
 
 func main() {
 	flag.Parse()
-	
+
 	if *level < 1 || *level > 9 {
 	exit("invalid compression level: must be between 1 and 9")
 	}
 
-//	if *compress {
-//	}
-		
 	if *help == true {
 		usage()
 		log.Fatal(0)
 	}
-	
+
+	// Initial checks for whether conditions this program is being run.
 	//if *stdout == true && *suffix != "bz2" {
 	if *stdout == true && setByUser("s") == true {
 		exit("stdout set, suffix not used")
@@ -91,6 +89,7 @@ func main() {
 	var inFilePath string
 	var outFilePath string
 
+	// Code for testing the given file.
 	if *test {
 		if flag.NArg() == 1 {
 			inFilePath = flag.Args()[0]
@@ -131,7 +130,6 @@ func main() {
 			exit("reading from stdin, suffix not needed")
 		}
 		stdin = true
-
 	} else if flag.NArg() == 1 { // parse args: read from file
 		inFilePath = flag.Args()[0]
 		f, err := os.Lstat(inFilePath)
@@ -169,8 +167,15 @@ func main() {
 			}
 
 			f, err = os.Lstat(outFilePath)
-			if err != nil && f != nil { // should be: ||| if err != nil && err != "file not found" ||| but i can't find the error's id
-				log.Fatal(err.Error())
+			if err != nil && f != nil {
+				 // should be:
+				 // 	if err != nil && err != "file not found"
+				 // but i can't find the error's id
+				 //
+				 // taks quest.: Perhaps errors.Is()? If it
+				 // doesn't return a "not found" error, it is
+				 // the library's fault.
+				 log.Fatal(err.Error())
 			}
 			if f != nil && !f.IsDir() {
 				if *force == true {
@@ -235,7 +240,7 @@ func main() {
 			log.Fatal(err.Error())
 		}
 
-	} else {
+	} else if *compress { // The default comportment.
 		// read from inFile into z
 		go func() {
 			defer pw.Close()
