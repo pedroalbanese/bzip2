@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"rsc.io/getopt"
 	"github.com/dsnet/compress/bzip2"
+	"rsc.io/getopt"
 )
 
 var (
@@ -69,6 +69,19 @@ func main() {
 		}
 		_ = flag.Bool(strconv.Itoa(i), false, explanation)
 	}
+	// Alias short flags with their long counterparts.
+	getopt.Aliases(
+		"1", "fast",
+		"9", "best",
+		"c", "stdout",
+		"d", "decompress",
+		"f", "force",
+		"k", "keep",
+		"t", "test",
+		"z", "compress",
+		"h", "help",
+	)
+	// Do the Bossa Nova --- I mean, parsing.
 	getopt.Parse()
 
 	// Check if someone has used '-#' for a compression level.
