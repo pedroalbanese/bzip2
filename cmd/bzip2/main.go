@@ -25,6 +25,9 @@ var (
 	keep       = flag.Bool("k", false, "keep original files unchaned")
 	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 1, "number of cores to use for parallelization")
+	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
+	test       = flag.Bool("t", false, "test compressed file integrity")
+	compress   = flag.Bool("z", false, "compress file(s); implies -f and -k if not set")
 
 	stdin bool
 )
@@ -53,10 +56,25 @@ func setByUser(name string) (isSet bool) {
 
 func main() {
 	flag.Parse()
+	
+	if *level < 1 || *level > 9 {
+	exit("invalid compression level: must be between 1 and 9")
+	}
+
+	if *compress {
+		if !setByUser("f") {
+			*force = true
+		}
+		if !setByUser("k") {
+			*keep = true
+		}
+	}
+		
 	if *help == true {
 		usage()
 		log.Fatal(0)
 	}
+	
 	//if *stdout == true && *suffix != "bz2" {
 	if *stdout == true && setByUser("s") == true {
 		exit("stdout set, suffix not used")
@@ -78,6 +96,38 @@ func main() {
 
 	var inFilePath string
 	var outFilePath string
+
+	if *test {
+		if flag.NArg() == 1 {
+			inFilePath = flag.Args()[0]
+		}
+		var inFile *os.File
+		var err error
+		if stdin {
+			inFile = os.Stdin
+		} else {
+			inFile, err = os.Open(inFilePath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer inFile.Close()
+		}
+
+		z, err := bzip2.NewReader(inFile, nil)
+		if err != nil {
+			log.Fatalf("corrupted file or format error: %v", err)
+		}
+		defer z.Close()
+
+		_, err = io.Copy(io.Discard, z)
+		if err != nil {
+			log.Fatalf("test failed: %v", err)
+		}
+
+		fmt.Printf("%s: OK\n", inFilePath)
+		return
+	}
+
 	if flag.NArg() == 0 || flag.NArg() == 1 && flag.Args()[0] == "-" { // parse args: read from stdin
 		if *stdout != true {
 			exit("reading from stdin, can write only to stdout")
@@ -201,7 +251,7 @@ func main() {
 			if stdin == true {
 				inFile = os.Stdin
 				defer inFile.Close()
-				z, _ = bzip2.NewWriter(pw, nil)
+				z, _ = bzip2.NewWriter(pw, &bzip2.WriterConfig{Level: *level})
 				defer z.Close()
 			} else {
 				inFile, err = os.Open(inFilePath)
@@ -209,7 +259,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err.Error())
 				}
-				z, _ = bzip2.NewWriter(pw, nil)
+				z, _ = bzip2.NewWriter(pw, &bzip2.WriterConfig{Level: *level})
 				defer z.Close()
 			}
 
