@@ -12,8 +12,8 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/dsnet/compress/bzip2"
 )
@@ -59,10 +59,14 @@ func main() {
 	// Levels.
 	// This is terrible. Don't blame it on me,
 	// blame it on the flag package designers.
+	// Yeah, this sort of spams usage().
 	// Perhaps Pedro would like to review it further.
 	for i := 1; i <= 9; i++ {
-		_ = flag.Bool(strconv.Itoa(i), false,
-		("set block size to" + strconv.Itoa((i * 100)) + "k"))
+		explanation := fmt.Sprintf("set block size to %dk", (i * 100))
+		if i == 9 {
+			explanation += " (default)"
+		}
+		_ = flag.Bool(strconv.Itoa(i), false, explanation)
 	}
 	flag.Parse()
 
@@ -187,14 +191,14 @@ func main() {
 
 			f, err = os.Lstat(outFilePath)
 			if err != nil && f != nil {
-				 // should be:
-				 // 	if err != nil && err != "file not found"
-				 // but i can't find the error's id
-				 //
-				 // taks quest.: Perhaps errors.Is()? If it
-				 // doesn't return a "not found" error, it is
-				 // the library's fault.
-				 log.Fatal(err.Error())
+				// should be:
+				// 	if err != nil && err != "file not found"
+				// but i can't find the error's id
+				//
+				// taks quest.: Perhaps errors.Is()? If it
+				// doesn't return a "not found" error, it is
+				// the library's fault.
+				log.Fatal(err.Error())
 			}
 			if f != nil && !f.IsDir() {
 				if *force == true {
