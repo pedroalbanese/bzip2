@@ -28,7 +28,7 @@ var (
 	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 1, "number of cores to use for parallelization")
 	test       = flag.Bool("t", false, "test compressed file integrity")
-	compress   = flag.Bool("z", true, "compress file(s); implies -f and -k if not set")
+	compress   = flag.Bool("z", true, "compress file(s)")
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 
 	stdin bool
