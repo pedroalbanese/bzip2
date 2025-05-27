@@ -26,7 +26,7 @@ var (
 	help       = flag.Bool("h", false, "print this help message")
 	keep       = flag.Bool("k", false, "keep original files unchaned")
 	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
-	cores      = flag.Int("cores", 1, "number of cores to use for parallelization")
+	cores      = flag.Int("cores", 0, "number of cores to use for parallelization")
 	test       = flag.Bool("t", false, "test compressed file integrity")
 	compress   = flag.Bool("z", true, "compress file(s)")
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
@@ -117,10 +117,15 @@ func main() {
 	if flag.NArg() > 1 {
 		exit("too many file, provide at most one file at a time or check order of flags")
 	}
-	if *cores < 1 || *cores > 32 {
+	if setByUser("cores") && (*cores < 1 || *cores > 32) {
 		exit("invalid number of cores")
 	}
 
+	// From 'go doc runtime.GOMAXPROCS':
+	// "It defaults to the value of runtime.NumCPU.
+	// If n < 1, it does not change the current setting."
+	// In fact, if the default value of cores is zero, it
+	// will use all the cores of the machine.
 	runtime.GOMAXPROCS(*cores)
 
 	var inFilePath string
