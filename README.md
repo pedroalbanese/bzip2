@@ -9,9 +9,12 @@
 <pre>Usage: bzip2 [OPTION]... [FILE]
 Compress or uncompress FILE (by default, compress FILE in-place).
 
+  -1    set block size to 100k
+  [...]
+  -9    set block size to 900k (default)
   -c    write on standard output, keep original files unchanged
   -cores int
-        number of cores to use for parallelization (default 1)
+        number of cores to use for parallelization
   -d    decompress; see also -c and -k
   -f    force overwrite of output file
   -h    print this help message
@@ -21,7 +24,7 @@ Compress or uncompress FILE (by default, compress FILE in-place).
   -s string
         use provided suffix on compressed files (default "bz2")
   -t    test compressed file integrity
-  -z    compress file(s); implies -f and -k if not set
+  -z    compress file(s) (default true)
 
 With no FILE, or when FILE is -, read standard input.</pre>
 
