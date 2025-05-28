@@ -27,6 +27,7 @@ var (
 	decompress = flag.Bool("d", false, "decompress; see also -c and -k")
 	force      = flag.Bool("f", false, "force overwrite of output file")
 	help       = flag.Bool("h", false, "print this help message")
+	verbose    = flag.Bool("v", false, "be verbose")
 	keep       = flag.Bool("k", false, "keep original files unchaned")
 	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 0, "number of cores to use for parallelization")
@@ -81,6 +82,7 @@ func main() {
 		"f", "force",
 		"k", "keep",
 		"t", "test",
+		"v", "verbose",
 		"z", "compress",
 		"h", "help",
 	)
@@ -162,7 +164,10 @@ func main() {
 			log.Fatalf("test failed: %v", err)
 		}
 
-		fmt.Printf("%s: OK\n", inFilePath)
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "%s: OK\n",
+					inFilePath)
+		}
 		return
 	}
 
@@ -229,10 +234,12 @@ func main() {
 						log.Fatal(err.Error())
 					}
 				} else {
-					exit(fmt.Sprintf("outFile %s exists. use force to overwrite", outFilePath))
+					exit(fmt.Sprintf("outFile %s exists. use force to overwrite",
+						outFilePath))
 				}
 			} else if f != nil {
-				exit(fmt.Sprintf("outFile %s exists and is not a regular file", outFilePath))
+				exit(fmt.Sprintf("outFile %s exists and is not a regular file",
+					outFilePath))
 			}
 		}
 	}
@@ -242,6 +249,7 @@ func main() {
 	//defer pw.Close()
 
 	if *decompress {
+		var inFileName string
 		// read from inFile into pw
 		go func() {
 			defer pw.Close()
@@ -252,6 +260,7 @@ func main() {
 			} else {
 				inFile, err = os.Open(inFilePath)
 			}
+			inFileName = inFile.Name()
 			defer inFile.Close()
 			if err != nil {
 				log.Fatal(err.Error())
@@ -263,6 +272,14 @@ func main() {
 			}
 
 		}()
+
+		// If verbosing, print the name of the file
+		// before anything can fail and/or other
+		// message can be printed.
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "%s: ",
+				inFileName)
+		}
 
 		// write into outFile from z
 		defer pr.Close()
@@ -285,6 +302,9 @@ func main() {
 			log.Fatal(err.Error())
 		}
 
+		if *verbose {
+			fmt.Fprintln(os.Stderr, "done")
+		}
 	} else if *compress { // The default comportment.
 		// read from inFile into z
 		go func() {
@@ -295,7 +315,8 @@ func main() {
 			if stdin == true {
 				inFile = os.Stdin
 				defer inFile.Close()
-				z, _ = bzip2.NewWriter(pw, &bzip2.WriterConfig{Level: *level})
+				z, _ = bzip2.NewWriter(pw,
+						&bzip2.WriterConfig{Level: *level})
 				defer z.Close()
 			} else {
 				inFile, err = os.Open(inFilePath)
@@ -303,13 +324,37 @@ func main() {
 				if err != nil {
 					log.Fatal(err.Error())
 				}
-				z, _ = bzip2.NewWriter(pw, &bzip2.WriterConfig{Level: *level})
+				z, _ = bzip2.NewWriter(pw,
+						&bzip2.WriterConfig{Level: *level})
 				defer z.Close()
+			}
+
+			// Same as above. It isn't necessary to create
+			// a new string variable to save
+			// (*os.File).Name() here since it is inside
+			// the goroutine scope.
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "%s: ",
+					inFile.Name())
 			}
 
 			_, err = io.Copy(z, inFile)
 			if err != nil {
 				log.Fatal(err.Error())
+			}
+
+			if *verbose {
+				// Use type assertion to access the bzip2.Writer
+				// struct inside io.WriteCloser.
+				// cf.: https://go.dev/tour/methods/15
+				bz := z.(*bzip2.Writer)
+				// Input:Output = X:1
+				compratio := (float64(bz.InputOffset) / float64(bz.OutputOffset))
+				fmt.Fprintf(os.Stderr, ("%6.3f:1, %6.3f bits/byte, " +
+					"%5.2f%% saved, %d in, %d out.\n"),
+					compratio, ((1 / compratio) * 8),
+					(100 * (1 - (1 / compratio))),
+					bz.InputOffset, bz.OutputOffset)
 			}
 		}()
 
