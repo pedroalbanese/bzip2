@@ -108,6 +108,12 @@ func main() {
 		log.Fatal(0)
 	}
 
+	// FIXME: Original bzip2 implementation support
+	// more than one file at a time.
+	if flag.NArg() > 1 {
+		exit("too many files, provide at most one file at a time or check order of flags")
+	}
+
 	// Initial checks for whether conditions this program is being run.
 	//if *stdout == true && *suffix != "bz2" {
 	if *stdout == true && setByUser("s") == true {
@@ -118,9 +124,6 @@ func main() {
 	}
 	if *stdout == true && *keep == true {
 		exit("stdout set, keep is redundant")
-	}
-	if flag.NArg() > 1 {
-		exit("too many file, provide at most one file at a time or check order of flags")
 	}
 	if setByUser("cores") && (*cores < 1 || *cores > 32) {
 		exit("invalid number of cores")
@@ -136,7 +139,8 @@ func main() {
 	var inFilePath string
 	var outFilePath string
 
-	// Code for testing the given file.
+	// Program functionality in general, such
+	// as testing files, reading and writing.
 	if *test {
 		if flag.NArg() == 1 {
 			inFilePath = flag.Args()[0]
