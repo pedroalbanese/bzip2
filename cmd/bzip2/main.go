@@ -166,7 +166,7 @@ func main() {
 
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "%s: OK\n",
-					inFilePath)
+				inFilePath)
 		}
 		return
 	}
@@ -316,7 +316,7 @@ func main() {
 				inFile = os.Stdin
 				defer inFile.Close()
 				z, _ = bzip2.NewWriter(pw,
-						&bzip2.WriterConfig{Level: *level})
+					&bzip2.WriterConfig{Level: *level})
 				defer z.Close()
 			} else {
 				inFile, err = os.Open(inFilePath)
@@ -325,7 +325,7 @@ func main() {
 					log.Fatal(err.Error())
 				}
 				z, _ = bzip2.NewWriter(pw,
-						&bzip2.WriterConfig{Level: *level})
+					&bzip2.WriterConfig{Level: *level})
 				defer z.Close()
 			}
 
