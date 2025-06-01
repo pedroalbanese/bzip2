@@ -1,4 +1,4 @@
-Copyright (c) 2021, Pedro Albanese pedroalbanese@hotmail.com
+Copyright (c) 2021, Pedro Albanese pedroalbanese@hotmail.com  
 Copyright (c) 2025, Luiz Antônio Rangel luiz.antonio.rangel@outlook.com.br
 
 Permission to use, copy, modify, and distribute this software for any
