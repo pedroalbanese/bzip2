@@ -1,7 +1,7 @@
 // Copyright (c) 2010, Andrei Vieru. All rights reserved.
 // Copyright (c) 2021, Pedro Albanese. All rights reserved.
 // Copyright (c) 2025: Pindorama
-//			Luiz Antônio Rangel (takusuman)
+//         Luiz Antônio Rangel (takusuman)
 // All rights reserved.
 // Use of this source code is governed by a ISC license that
 // can be found in the LICENSE file.
@@ -22,35 +22,39 @@ import (
 	"rsc.io/getopt"
 )
 
+// Command-line flags
 var (
 	stdout     = flag.Bool("c", false, "write on standard output, keep original files unchanged")
 	decompress = flag.Bool("d", false, "decompress; see also -c and -k")
 	force      = flag.Bool("f", false, "force overwrite of output file")
 	help       = flag.Bool("h", false, "print this help message")
 	verbose    = flag.Bool("v", false, "be verbose")
-	keep       = flag.Bool("k", false, "keep original files unchaned")
+	keep       = flag.Bool("k", false, "keep original files unchanged")
 	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 0, "number of cores to use for parallelization")
 	test       = flag.Bool("t", false, "test compressed file integrity")
 	compress   = flag.Bool("z", true, "compress file(s)")
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 
-	stdin bool
+	stdin bool // Indicates if reading from standard input
 )
 
+// usage displays program usage instructions
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... [FILE]\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "Compress or uncompress FILE (by default, compress FILE in-place).\n\n")
+	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... [FILE]...\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Compress or uncompress FILEs (by default, compress FILEs in-place).\n\n")
 	getopt.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nWith no FILE, or when FILE is -, read standard input.\n")
 }
 
+// exit shows an error message and exits the program with error code
 func exit(msg string) {
 	usage()
 	fmt.Fprintln(os.Stderr)
 	log.Fatalf("%s: check args: %s\n\n", os.Args[0], msg)
 }
 
+// setByUser checks whether a specific flag was explicitly set by the user
 func setByUser(name string) (isSet bool) {
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == name {
@@ -60,12 +64,251 @@ func setByUser(name string) (isSet bool) {
 	return
 }
 
+// processFile processes a single file (compression, decompression, or test)
+// Returns an error if any issue occurs during processing
+func processFile(inFilePath string) error {
+	// Checks for conflicting flags
+	if *stdout == true && setByUser("s") == true {
+		return fmt.Errorf("stdout set, suffix not used")
+	}
+	if *stdout == true && *force == true {
+		return fmt.Errorf("stdout set, force not used")
+	}
+	if *stdout == true && *keep == true {
+		return fmt.Errorf("stdout set, keep is redundant")
+	}
+
+	var outFilePath string // Output file path
+
+	// Test mode: verifies compressed file integrity
+	if *test {
+		var inFile *os.File
+		var err error
+		if inFilePath == "-" {
+			inFile = os.Stdin
+		} else {
+			inFile, err = os.Open(inFilePath)
+			if err != nil {
+				return err
+			}
+			defer inFile.Close()
+		}
+
+		z, err := bzip2.NewReader(inFile, nil)
+		if err != nil {
+			return fmt.Errorf("corrupted file or format error: %v", err)
+		}
+		defer z.Close()
+
+		_, err = io.Copy(io.Discard, z)
+		if err != nil {
+			return fmt.Errorf("test failed: %v", err)
+		}
+
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "%s: OK\n", inFilePath)
+		}
+		return nil
+	}
+
+	// Determines the input source (stdin or file)
+	if inFilePath == "-" { // read from stdin
+		if *stdout != true {
+			return fmt.Errorf("reading from stdin, can write only to stdout")
+		}
+		if setByUser("s") == true {
+			return fmt.Errorf("reading from stdin, suffix not needed")
+		}
+		stdin = true
+	} else { // read from file
+		f, err := os.Lstat(inFilePath)
+		if err != nil {
+			return err
+		}
+		if f == nil {
+			return fmt.Errorf("file %s not found", inFilePath)
+		}
+		if f.IsDir() {
+			return fmt.Errorf("%s is a directory", inFilePath)
+		}
+
+		// Determines the output destination (file)
+		if !*stdout { // write to file
+			if *suffix == "" {
+				return fmt.Errorf("suffix can't be an empty string")
+			}
+
+			// Generates output file name
+			if *decompress {
+				outFileDir, outFileName := path.Split(inFilePath)
+				if strings.HasSuffix(outFileName, "."+*suffix) {
+					if len(outFileName) > len("."+*suffix) {
+						nstr := strings.SplitN(outFileName, ".", len(outFileName))
+						estr := strings.Join(nstr[0:len(nstr)-1], ".")
+						outFilePath = outFileDir + estr
+					} else {
+						return fmt.Errorf("can't strip suffix .%s from file %s", *suffix, inFilePath)
+					}
+				} else {
+					return fmt.Errorf("file %s doesn't have suffix .%s", inFilePath, *suffix)
+				}
+			} else {
+				outFilePath = inFilePath + "." + *suffix
+			}
+
+			// Checks if output file already exists
+			f, err = os.Lstat(outFilePath)
+			if err == nil && f != nil {
+				if !*force {
+					return fmt.Errorf("outFile %s exists. use -f to overwrite", outFilePath)
+				}
+				if f.IsDir() {
+					return fmt.Errorf("outFile %s is a directory", outFilePath)
+				}
+				err = os.Remove(outFilePath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Creates a pipe for communication between goroutines
+	pr, pw := io.Pipe()
+
+	// File decompression
+	if *decompress {
+		go func() {
+			defer pw.Close()
+			var inFile *os.File
+			var err error
+			if inFilePath == "-" {
+				inFile = os.Stdin
+			} else {
+				inFile, err = os.Open(inFilePath)
+				if err != nil {
+					pw.CloseWithError(err)
+					return
+				}
+				defer inFile.Close()
+			}
+
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "%s: ", inFile.Name())
+			}
+
+			_, err = io.Copy(pw, inFile)
+			if err != nil {
+				pw.CloseWithError(err)
+				return
+			}
+		}()
+
+		z, err := bzip2.NewReader(pr, nil)
+		if err != nil {
+			pr.Close()
+			return err
+		}
+		defer z.Close()
+
+		var outFile *os.File
+		if *stdout {
+			outFile = os.Stdout
+		} else {
+			outFile, err = os.Create(outFilePath)
+			if err != nil {
+				pr.Close()
+				return err
+			}
+			defer outFile.Close()
+		}
+
+		_, err = io.Copy(outFile, z)
+		pr.Close()
+		if err != nil {
+			return err
+		}
+
+		if *verbose && !*stdout {
+			fmt.Fprintln(os.Stderr, "done")
+		}
+	} else { // File compression
+		go func() {
+			defer pw.Close()
+			var inFile *os.File
+			var err error
+			if inFilePath == "-" {
+				inFile = os.Stdin
+			} else {
+				inFile, err = os.Open(inFilePath)
+				if err != nil {
+					pw.CloseWithError(err)
+					return
+				}
+				defer inFile.Close()
+			}
+
+			z, err := bzip2.NewWriter(pw, &bzip2.WriterConfig{Level: *level})
+			if err != nil {
+				pw.CloseWithError(err)
+				return
+			}
+			defer z.Close()
+
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "%s: ", inFile.Name())
+			}
+
+			_, err = io.Copy(z, inFile)
+			if err != nil {
+				pw.CloseWithError(err)
+				return
+			}
+
+			if *verbose {
+				bz := z
+				compratio := (float64(bz.InputOffset) / float64(bz.OutputOffset))
+				fmt.Fprintf(os.Stderr, "%6.3f:1, %6.3f bits/byte, %5.2f%% saved, %d in, %d out.\n",
+					compratio, ((1 / compratio) * 8),
+					(100 * (1 - (1 / compratio))),
+					bz.InputOffset, bz.OutputOffset)
+			}
+		}()
+
+		var outFile *os.File
+		var err error
+		if *stdout {
+			outFile = os.Stdout
+		} else {
+			outFile, err = os.Create(outFilePath)
+			if err != nil {
+				pr.Close()
+				return err
+			}
+			defer outFile.Close()
+		}
+
+		_, err = io.Copy(outFile, pr)
+		pr.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Removes the original file if needed
+	if !*stdout && !*keep && inFilePath != "-" {
+		err := os.Remove(inFilePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// main is the program's entry point
 func main() {
-	// Levels.
-	// This is terrible. Don't blame it on me,
-	// blame it on the flag package designers.
-	// Yeah, this sort of spams usage().
-	// Perhaps Pedro would like to review it further.
+	// Configure flags for compression levels (1–9)
 	for i := 1; i <= 9; i++ {
 		explanation := fmt.Sprintf("set block size to %dk", (i * 100))
 		if i == 9 {
@@ -73,6 +316,7 @@ func main() {
 		}
 		_ = flag.Bool(strconv.Itoa(i), false, explanation)
 	}
+
 	// Alias short flags with their long counterparts.
 	getopt.Aliases(
 		"1", "fast",
@@ -86,7 +330,8 @@ func main() {
 		"z", "compress",
 		"h", "help",
 	)
-	// Do the Bossa Nova --- I mean, parsing.
+
+	// Parse command-line flags
 	getopt.Parse()
 
 	// Check if someone has used '-#' for a compression level.
@@ -98,33 +343,19 @@ func main() {
 			}
 		}
 	}
-
+	
+	// Validate compression level
 	if *level < 1 || *level > 9 {
 		exit("invalid compression level: must be between 1 and 9")
 	}
 
-	if *help == true {
+	// Show help if requested
+	if *help {
 		usage()
-		log.Fatal(0)
+		os.Exit(0)
 	}
 
-	// FIXME: Original bzip2 implementation support
-	// more than one file at a time.
-	if flag.NArg() > 1 {
-		exit("too many files, provide at most one file at a time or check order of flags")
-	}
-
-	// Initial checks for whether conditions this program is being run.
-	//if *stdout == true && *suffix != "bz2" {
-	if *stdout == true && setByUser("s") == true {
-		exit("stdout set, suffix not used")
-	}
-	if *stdout == true && *force == true {
-		exit("stdout set, force not used")
-	}
-	if *stdout == true && *keep == true {
-		exit("stdout set, keep is redundant")
-	}
+	// Validate number of cores
 	if setByUser("cores") && (*cores < 1 || *cores > 32) {
 		exit("invalid number of cores")
 	}
@@ -136,256 +367,24 @@ func main() {
 	// will use all the cores of the machine.
 	runtime.GOMAXPROCS(*cores)
 
-	var inFilePath string
-	var outFilePath string
-
-	// Program functionality in general, such
-	// as testing files, reading and writing.
-	if *test {
-		if flag.NArg() == 1 {
-			inFilePath = flag.Args()[0]
-		}
-		var inFile *os.File
-		var err error
-		if stdin {
-			inFile = os.Stdin
-		} else {
-			inFile, err = os.Open(inFilePath)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer inFile.Close()
-		}
-
-		z, err := bzip2.NewReader(inFile, nil)
-		if err != nil {
-			log.Fatalf("corrupted file or format error: %v", err)
-		}
-		defer z.Close()
-
-		_, err = io.Copy(io.Discard, z)
-		if err != nil {
-			log.Fatalf("test failed: %v", err)
-		}
-
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "%s: OK\n",
-				inFilePath)
-		}
-		return
+	// Get list of files to process
+	files := flag.Args()
+	if len(files) == 0 {
+		files = []string{"-"} // default to stdin
 	}
 
-	if flag.NArg() == 0 || flag.NArg() == 1 && flag.Args()[0] == "-" { // parse args: read from stdin
-		if *stdout != true {
-			exit("reading from stdin, can write only to stdout")
-		}
-		//if *suffix != "bzip2" {
-		if setByUser("s") == true {
-			exit("reading from stdin, suffix not needed")
-		}
-		stdin = true
-	} else if flag.NArg() == 1 { // parse args: read from file
-		inFilePath = flag.Args()[0]
-		f, err := os.Lstat(inFilePath)
+	// Process each file
+	hasErrors := false
+	for _, file := range files {
+		err := processFile(file)
 		if err != nil {
-			log.Fatal(err.Error())
-		}
-		if f == nil {
-			exit(fmt.Sprintf("file %s not found", inFilePath))
-		}
-		if !!f.IsDir() {
-			exit(fmt.Sprintf("%s is not a regular file", inFilePath))
-		}
-
-		if *stdout == false { // parse args: write to file
-			if *suffix == "" {
-				exit("suffix can't be an empty string")
-			}
-
-			if *decompress == true {
-				outFileDir, outFileName := path.Split(inFilePath)
-				if strings.HasSuffix(outFileName, "."+*suffix) {
-					if len(outFileName) > len("."+*suffix) {
-						nstr := strings.SplitN(outFileName, ".", len(outFileName))
-						estr := strings.Join(nstr[0:len(nstr)-1], ".")
-						outFilePath = outFileDir + estr
-					} else {
-						log.Fatalf("error: can't strip suffix .%s from file %s", *suffix, inFilePath)
-					}
-				} else {
-					exit(fmt.Sprintf("file %s doesn't have suffix .%s", inFilePath, *suffix))
-				}
-
-			} else {
-				outFilePath = inFilePath + "." + *suffix
-			}
-
-			f, err = os.Lstat(outFilePath)
-			if err != nil && f != nil {
-				// should be:
-				// 	if err != nil && err != "file not found"
-				// but i can't find the error's id
-				//
-				// taks quest.: Perhaps errors.Is()? If it
-				// doesn't return a "not found" error, it is
-				// the library's fault.
-				log.Fatal(err.Error())
-			}
-			if f != nil && !f.IsDir() {
-				if *force == true {
-					err = os.Remove(outFilePath)
-					if err != nil {
-						log.Fatal(err.Error())
-					}
-				} else {
-					exit(fmt.Sprintf("outFile %s exists. use force to overwrite",
-						outFilePath))
-				}
-			} else if f != nil {
-				exit(fmt.Sprintf("outFile %s exists and is not a regular file",
-					outFilePath))
-			}
+			log.Printf("%s: %v", file, err)
+			hasErrors = true
 		}
 	}
 
-	pr, pw := io.Pipe()
-	//defer pr.Close()
-	//defer pw.Close()
-
-	if *decompress {
-		var inFileName string
-		// read from inFile into pw
-		go func() {
-			defer pw.Close()
-			var inFile *os.File
-			var err error
-			if stdin == true {
-				inFile = os.Stdin
-			} else {
-				inFile, err = os.Open(inFilePath)
-			}
-			inFileName = inFile.Name()
-			defer inFile.Close()
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-
-			_, err = io.Copy(pw, inFile)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-
-		}()
-
-		// If verbosing, print the name of the file
-		// before anything can fail and/or other
-		// message can be printed.
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "%s: ",
-				inFileName)
-		}
-
-		// write into outFile from z
-		defer pr.Close()
-		z, _ := bzip2.NewReader(pr, nil)
-		defer z.Close()
-		var outFile *os.File
-		var err error
-		if *stdout == true {
-			outFile = os.Stdout
-		} else {
-			outFile, err = os.Create(outFilePath)
-		}
-		defer outFile.Close()
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-
-		_, err = io.Copy(outFile, z)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-
-		if *verbose {
-			fmt.Fprintln(os.Stderr, "done")
-		}
-	} else if *compress { // The default comportment.
-		// read from inFile into z
-		go func() {
-			defer pw.Close()
-			var z io.WriteCloser
-			var inFile *os.File
-			var err error
-			if stdin == true {
-				inFile = os.Stdin
-				defer inFile.Close()
-				z, _ = bzip2.NewWriter(pw,
-					&bzip2.WriterConfig{Level: *level})
-				defer z.Close()
-			} else {
-				inFile, err = os.Open(inFilePath)
-				defer inFile.Close()
-				if err != nil {
-					log.Fatal(err.Error())
-				}
-				z, _ = bzip2.NewWriter(pw,
-					&bzip2.WriterConfig{Level: *level})
-				defer z.Close()
-			}
-
-			// Same as above. It isn't necessary to create
-			// a new string variable to save
-			// (*os.File).Name() here since it is inside
-			// the goroutine scope.
-			if *verbose {
-				fmt.Fprintf(os.Stderr, "%s: ",
-					inFile.Name())
-			}
-
-			_, err = io.Copy(z, inFile)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-
-			if *verbose {
-				// Use type assertion to access the bzip2.Writer
-				// struct inside io.WriteCloser.
-				// cf.: https://go.dev/tour/methods/15
-				bz := z.(*bzip2.Writer)
-				// Input:Output = X:1
-				compratio := (float64(bz.InputOffset) / float64(bz.OutputOffset))
-				fmt.Fprintf(os.Stderr, ("%6.3f:1, %6.3f bits/byte, " +
-					"%5.2f%% saved, %d in, %d out.\n"),
-					compratio, ((1 / compratio) * 8),
-					(100 * (1 - (1 / compratio))),
-					bz.InputOffset, bz.OutputOffset)
-			}
-		}()
-
-		// write into outFile from pr
-		defer pr.Close()
-		var outFile *os.File
-		var err error
-		if *stdout == true {
-			outFile = os.Stdout
-		} else {
-			outFile, err = os.Create(outFilePath)
-		}
-		defer outFile.Close()
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-
-		_, err = io.Copy(outFile, pr)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	}
-
-	if *stdout == false && *keep == false {
-		err := os.Remove(inFilePath)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
+	// Exit with error code if any failures occurred
+	if hasErrors {
+		os.Exit(1)
 	}
 }
