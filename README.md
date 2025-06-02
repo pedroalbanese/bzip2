@@ -32,4 +32,4 @@ With no FILE, or when FILE is -, read standard input.</pre>
 
 This project is licensed under the ISC License.
 
-##### Copyright (c) 2020-2021 Pedro Albanese - ALBANESE Research Lab.
+##### Copyright (c) 2020-2025 ALBANESE Research Lab & Projeto Pindorama.
