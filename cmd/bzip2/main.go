@@ -1,9 +1,7 @@
 // Copyright (c) 2010, Andrei Vieru. All rights reserved.
 // Copyright (c) 2021, Pedro Albanese. All rights reserved.
 // Copyright (c) 2025: Pindorama
-//
-//	Luiz Antônio Rangel (takusuman)
-//
+//		Luiz Antônio Rangel (takusuman)
 // All rights reserved.
 // Use of this source code is governed by a ISC license that
 // can be found in the LICENSE file.
@@ -16,6 +14,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -37,6 +36,7 @@ var (
 	test       = flag.Bool("t", false, "test compressed file integrity")
 	compress   = flag.Bool("z", true, "compress file(s)")
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
+	recursive  = flag.Bool("r", false, "operate recursively on directories")
 
 	ActualFlags []*flag.Flag
 	stdin       bool // Indicates if reading from standard input
@@ -293,12 +293,11 @@ func processFile(inFilePath string) error {
 			}
 
 			if *verbose {
-				bz := z
-				compratio := (float64(bz.InputOffset) / float64(bz.OutputOffset))
+				compratio := (float64(z.InputOffset) / float64(z.OutputOffset))
 				fmt.Fprintf(os.Stderr, "%6.3f:1, %6.3f bits/byte, %5.2f%% saved, %d in, %d out.\n",
 					compratio, ((1 / compratio) * 8),
 					(100 * (1 - (1 / compratio))),
-					bz.InputOffset, bz.OutputOffset)
+					z.InputOffset, z.OutputOffset)
 			}
 		}()
 
@@ -352,6 +351,7 @@ func main() {
 		"d", "decompress",
 		"f", "force",
 		"k", "keep",
+		"r", "recursive",
 		"t", "test",
 		"v", "verbose",
 		"z", "compress",
@@ -406,10 +406,43 @@ func main() {
 	// Process each file
 	hasErrors := false
 	for _, file := range files {
-		err := processFile(file)
+		info, err := os.Stat(file)
 		if err != nil {
 			log.Printf("%s: %v", file, err)
 			hasErrors = true
+			continue
+		}
+
+		if info.IsDir() {
+			if *recursive {
+				err = filepath.Walk(file, func(path string, fi os.FileInfo, err error) error {
+					if err != nil {
+						log.Printf("%s: %v", path, err)
+						hasErrors = true
+						return nil
+					}
+					if !fi.IsDir() {
+						if err := processFile(path); err != nil {
+							log.Printf("%s: %v", path, err)
+							hasErrors = true
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					log.Printf("%s: %v", file, err)
+					hasErrors = true
+				}
+			} else {
+				log.Printf("%s is a directory (use -r to process recursively)", file)
+				hasErrors = true
+			}
+		} else {
+			err := processFile(file)
+			if err != nil {
+				log.Printf("%s: %v", file, err)
+				hasErrors = true
+			}
 		}
 	}
 
