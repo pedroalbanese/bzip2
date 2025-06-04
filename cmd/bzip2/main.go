@@ -26,7 +26,7 @@ import (
 
 // Command-line flags
 var (
-	ActualFlags = []string{}
+	ActualFlags = []*flag.Flag{}
 	stdout      = flag.Bool("c", false, "write on standard output, keep original files unchanged")
 	decompress  = flag.Bool("d", false, "decompress; see also -c and -k")
 	force       = flag.Bool("f", false, "force overwrite of output file")
@@ -67,11 +67,13 @@ func parseActualFlags(args []string) {
 			} else if arg[1] != '-' { /* Vulgar UNIX command line options. */
 				for f := 0; f < len(arg[1:]); f++ {
 					sarg := arg[1:]
-					ActualFlags = append(ActualFlags, string(sarg[f]))
+					ActualFlags = append(ActualFlags,
+						getopt.CommandLine.Lookup(string(sarg[f])))
 				}
 				continue
 			} else if arg[1] == '-' && len(arg) > 2 { /* GNU-style long options. */
-				ActualFlags = append(ActualFlags, arg[2:])
+				ActualFlags = append(ActualFlags,
+					getopt.CommandLine.Lookup(arg[2:]))
 			}
 		default:
 			continue
@@ -81,13 +83,7 @@ func parseActualFlags(args []string) {
 
 // setByUser checks whether a specific flag was explicitly set by the user
 func setByUser(name string) bool {
-	// Of course this could've been done
-	// without Lookup(), but I wanted to
-	// show how much of the flag.Visit()
-	// functionality could be imitated
-	// with this workaround.
-	for _, opt := range ActualFlags {
-		f := getopt.CommandLine.Lookup(opt)
+	for _, f := range ActualFlags {
 		if f.Name == name {
 			return true
 		}
