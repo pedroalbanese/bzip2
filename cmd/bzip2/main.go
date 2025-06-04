@@ -1,7 +1,9 @@
 // Copyright (c) 2010, Andrei Vieru. All rights reserved.
 // Copyright (c) 2021, Pedro Albanese. All rights reserved.
 // Copyright (c) 2025: Pindorama
-//         Luiz Antônio Rangel (takusuman)
+//
+//	Luiz Antônio Rangel (takusuman)
+//
 // All rights reserved.
 // Use of this source code is governed by a ISC license that
 // can be found in the LICENSE file.
@@ -25,17 +27,17 @@ import (
 // Command-line flags
 var (
 	ActualFlags = []string{}
-	stdout     = flag.Bool("c", false, "write on standard output, keep original files unchanged")
-	decompress = flag.Bool("d", false, "decompress; see also -c and -k")
-	force      = flag.Bool("f", false, "force overwrite of output file")
-	help       = flag.Bool("h", false, "print this help message")
-	verbose    = flag.Bool("v", false, "be verbose")
-	keep       = flag.Bool("k", false, "keep original files unchanged")
-	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
-	cores      = flag.Int("cores", 0, "number of cores to use for parallelization")
-	test       = flag.Bool("t", false, "test compressed file integrity")
-	compress   = flag.Bool("z", true, "compress file(s)")
-	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
+	stdout      = flag.Bool("c", false, "write on standard output, keep original files unchanged")
+	decompress  = flag.Bool("d", false, "decompress; see also -c and -k")
+	force       = flag.Bool("f", false, "force overwrite of output file")
+	help        = flag.Bool("h", false, "print this help message")
+	verbose     = flag.Bool("v", false, "be verbose")
+	keep        = flag.Bool("k", false, "keep original files unchanged")
+	suffix      = flag.String("s", "bz2", "use provided suffix on compressed files")
+	cores       = flag.Int("cores", 0, "number of cores to use for parallelization")
+	test        = flag.Bool("t", false, "test compressed file integrity")
+	compress    = flag.Bool("z", true, "compress file(s)")
+	level       = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 
 	stdin bool // Indicates if reading from standard input
 )
@@ -58,17 +60,17 @@ func exit(msg string) {
 func parseActualFlags(args []string) {
 	for s := 0; s < len(args); s++ {
 		arg := args[s]
-		switch (arg[0]) {
+		switch arg[0] {
 		case '-':
-			if (len(arg) == 1) {
+			if len(arg) == 1 {
 				break
-			} else if (arg[1] != '-') { /* Vulgar UNIX command line options. */
+			} else if arg[1] != '-' { /* Vulgar UNIX command line options. */
 				for f := 0; f < len(arg[1:]); f++ {
 					sarg := arg[1:]
 					ActualFlags = append(ActualFlags, string(sarg[f]))
 				}
 				continue
-			} else if (arg[1] == '-' && len(arg) > 2) { /* GNU-style long options. */
+			} else if arg[1] == '-' && len(arg) > 2 { /* GNU-style long options. */
 				ActualFlags = append(ActualFlags, arg[2:])
 			}
 		default:
@@ -78,15 +80,15 @@ func parseActualFlags(args []string) {
 }
 
 // setByUser checks whether a specific flag was explicitly set by the user
-func setByUser(name string) (bool) {
+func setByUser(name string) bool {
 	// Of course this could've been done
 	// without Lookup(), but I wanted to
 	// show how much of the flag.Visit()
 	// functionality could be imitated
 	// with this workaround.
 	for _, opt := range ActualFlags {
-		 f := getopt.CommandLine.Lookup(opt)
-		 if f.Name == name {
+		f := getopt.CommandLine.Lookup(opt)
+		if f.Name == name {
 			return true
 		}
 	}
@@ -362,7 +364,7 @@ func main() {
 
 	// Parse command-line flags
 	getopt.Parse()
-	
+
 	// Workaround for https://github.com/rsc/getopt/issues/2.
 	parseActualFlags(os.Args[1:])
 
@@ -375,7 +377,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	// Validate compression level
 	if *level < 1 || *level > 9 {
 		exit("invalid compression level: must be between 1 and 9")
