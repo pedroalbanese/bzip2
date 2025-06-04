@@ -21,6 +21,7 @@ Compress or uncompress FILE (by default, compress FILE in-place).
   -k    keep original files unchaned
   -l int
         compression level (1 = fastest, 9 = best) (default 9)
+  -r    operate recursively on directories
   -s string
         use provided suffix on compressed files (default "bz2")
   -t    test compressed file integrity

@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ var (
 	test       = flag.Bool("t", false, "test compressed file integrity")
 	compress   = flag.Bool("z", true, "compress file(s)")
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
+	recursive  = flag.Bool("r", false, "operate recursively on directories")
 
 	stdin bool // Indicates if reading from standard input
 )
@@ -354,6 +356,7 @@ func main() {
 		"d", "decompress",
 		"f", "force",
 		"k", "keep",
+		"r", "recursive",
 		"t", "test",
 		"v", "verbose",
 		"z", "compress",
@@ -408,10 +411,43 @@ func main() {
 	// Process each file
 	hasErrors := false
 	for _, file := range files {
-		err := processFile(file)
+		info, err := os.Stat(file)
 		if err != nil {
 			log.Printf("%s: %v", file, err)
 			hasErrors = true
+			continue
+		}
+
+		if info.IsDir() {
+			if *recursive {
+				err = filepath.Walk(file, func(path string, fi os.FileInfo, err error) error {
+					if err != nil {
+						log.Printf("%s: %v", path, err)
+						hasErrors = true
+						return nil
+					}
+					if !fi.IsDir() {
+						if err := processFile(path); err != nil {
+							log.Printf("%s: %v", path, err)
+							hasErrors = true
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					log.Printf("%s: %v", file, err)
+					hasErrors = true
+				}
+			} else {
+				log.Printf("%s is a directory (use -r to process recursively)", file)
+				hasErrors = true
+			}
+		} else {
+			err := processFile(file)
+			if err != nil {
+				log.Printf("%s: %v", file, err)
+				hasErrors = true
+			}
 		}
 	}
 
