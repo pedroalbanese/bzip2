@@ -26,20 +26,20 @@ import (
 
 // Command-line flags
 var (
-	ActualFlags = []*flag.Flag{}
-	stdout      = flag.Bool("c", false, "write on standard output, keep original files unchanged")
-	decompress  = flag.Bool("d", false, "decompress; see also -c and -k")
-	force       = flag.Bool("f", false, "force overwrite of output file")
-	help        = flag.Bool("h", false, "print this help message")
-	verbose     = flag.Bool("v", false, "be verbose")
-	keep        = flag.Bool("k", false, "keep original files unchanged")
-	suffix      = flag.String("s", "bz2", "use provided suffix on compressed files")
-	cores       = flag.Int("cores", 0, "number of cores to use for parallelization")
-	test        = flag.Bool("t", false, "test compressed file integrity")
-	compress    = flag.Bool("z", true, "compress file(s)")
-	level       = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
+	stdout     = flag.Bool("c", false, "write on standard output, keep original files unchanged")
+	decompress = flag.Bool("d", false, "decompress; see also -c and -k")
+	force      = flag.Bool("f", false, "force overwrite of output file")
+	help       = flag.Bool("h", false, "print this help message")
+	verbose    = flag.Bool("v", false, "be verbose")
+	keep       = flag.Bool("k", false, "keep original files unchanged")
+	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
+	cores      = flag.Int("cores", 0, "number of cores to use for parallelization")
+	test       = flag.Bool("t", false, "test compressed file integrity")
+	compress   = flag.Bool("z", true, "compress file(s)")
+	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 
-	stdin bool // Indicates if reading from standard input
+	ActualFlags []*flag.Flag
+	stdin       bool // Indicates if reading from standard input
 )
 
 // usage displays program usage instructions
