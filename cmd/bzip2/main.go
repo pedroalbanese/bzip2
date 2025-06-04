@@ -24,6 +24,7 @@ import (
 
 // Command-line flags
 var (
+	ActualFlags = []string{}
 	stdout     = flag.Bool("c", false, "write on standard output, keep original files unchanged")
 	decompress = flag.Bool("d", false, "decompress; see also -c and -k")
 	force      = flag.Bool("f", false, "force overwrite of output file")
@@ -54,14 +55,42 @@ func exit(msg string) {
 	log.Fatalf("%s: check args: %s\n\n", os.Args[0], msg)
 }
 
-// setByUser checks whether a specific flag was explicitly set by the user
-func setByUser(name string) (isSet bool) {
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			isSet = true
+func parseActualFlags(args []string) {
+	for s := 0; s < len(args); s++ {
+		arg := args[s]
+		switch (arg[0]) {
+		case '-':
+			if (len(arg) == 1) {
+				break
+			} else if (arg[1] != '-') { /* Vulgar UNIX command line options. */
+				for f := 0; f < len(arg[1:]); f++ {
+					sarg := arg[1:]
+					ActualFlags = append(ActualFlags, string(sarg[f]))
+				}
+				continue
+			} else if (arg[1] == '-' && len(arg) > 2) { /* GNU-style long options. */
+				ActualFlags = append(ActualFlags, arg[2:])
+			}
+		default:
+			continue
 		}
-	})
-	return
+	}
+}
+
+// setByUser checks whether a specific flag was explicitly set by the user
+func setByUser(name string) (bool) {
+	// Of course this could've been done
+	// without Lookup(), but I wanted to
+	// show how much of the flag.Visit()
+	// functionality could be imitated
+	// with this workaround.
+	for _, opt := range ActualFlags {
+		 f := getopt.CommandLine.Lookup(opt)
+		 if f.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // processFile processes a single file (compression, decompression, or test)
@@ -333,6 +362,9 @@ func main() {
 
 	// Parse command-line flags
 	getopt.Parse()
+	
+	// Workaround for https://github.com/rsc/getopt/issues/2.
+	parseActualFlags(os.Args[1:])
 
 	// Check if someone has used '-#' for a compression level.
 	if !setByUser("l") {
