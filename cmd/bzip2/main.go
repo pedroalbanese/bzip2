@@ -31,7 +31,7 @@ var (
 	help       = flag.Bool("h", false, "print this help message")
 	verbose    = flag.Bool("v", false, "be verbose")
 	keep       = flag.Bool("k", false, "keep original files unchanged")
-	suffix     = flag.String("s", "bz2", "use provided suffix on compressed files")
+	suffix     = flag.String("S", "bz2", "use provided suffix on compressed files")
 	cores      = flag.Int("cores", 0, "number of cores to use for parallelization")
 	test       = flag.Bool("t", false, "test compressed file integrity")
 	compress   = flag.Bool("z", true, "compress file(s)")
@@ -70,7 +70,7 @@ func setByUser(name string) (isSet bool) {
 // Returns an error if any issue occurs during processing
 func processFile(inFilePath string) error {
 	// Checks for conflicting flags
-	if *stdout == true && setByUser("s") == true {
+	if *stdout == true && setByUser("S") == true {
 		return fmt.Errorf("stdout set, suffix not used")
 	}
 	if *stdout == true && *force == true {
@@ -118,7 +118,7 @@ func processFile(inFilePath string) error {
 		if *stdout != true {
 			return fmt.Errorf("reading from stdin, can write only to stdout")
 		}
-		if setByUser("s") == true {
+		if setByUser("S") == true {
 			return fmt.Errorf("reading from stdin, suffix not needed")
 		}
 		stdin = true
@@ -312,11 +312,15 @@ func processFile(inFilePath string) error {
 func main() {
 	// Configure flags for compression levels (1–9)
 	for i := 1; i <= 9; i++ {
+		levelValue := i
 		explanation := fmt.Sprintf("set block size to %dk", (i * 100))
 		if i == 9 {
 			explanation += " (default)"
 		}
-		_ = flag.Bool(strconv.Itoa(i), false, explanation)
+		flag.BoolFunc(strconv.Itoa(i), explanation, func(string) error {
+			*level = levelValue
+			return nil
+		})
 	}
 
 	// Alias short flags with their long counterparts.
