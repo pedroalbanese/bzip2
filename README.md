@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/pedroalbanese/bzip2)](https://goreportcard.com/report/github.com/pedroalbanese/bzip2)
 [![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/pedroalbanese/bzip2)](https://golang.org)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/pedroalbanese/bzip2)](https://github.com/pedroalbanese/bzip2/releases)
-### Command:
+### Bzip2 Compression Tool for modern multi-core machines
 <pre>Usage: bzip2 [OPTION]... [FILE]...
 Compress or uncompress FILEs (by default, compress FILEs in-place).
 
