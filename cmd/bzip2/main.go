@@ -316,7 +316,7 @@ func main() {
 	// Configure flags for compression levels (1–9)
 	for i := 1; i <= 9; i++ {
 		levelValue := i
-		explanation := fmt.Sprintf("compression level %d", i)
+		explanation := fmt.Sprintf("set block size to %dk", (i * 100))
 		if i == 9 {
 			explanation += " (default)"
 		}		
