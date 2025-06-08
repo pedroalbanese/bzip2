@@ -1,7 +1,7 @@
 // Copyright (c) 2010, Andrei Vieru. All rights reserved.
 // Copyright (c) 2021, Pedro Albanese. All rights reserved.
 // Copyright (c) 2025: Pindorama
-//         Luiz Antônio Rangel (takusuman)
+//		Luiz Antônio Rangel (takusuman)
 // All rights reserved.
 // Use of this source code is governed by a ISC license that
 // can be found in the LICENSE file.
@@ -38,7 +38,8 @@ var (
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 	recursive  = flag.Bool("r", false, "operate recursively on directories")
 
-	stdin bool // Indicates if reading from standard input
+	ActualFlags []*flag.Flag
+	stdin       bool // Indicates if reading from standard input
 )
 
 // usage displays program usage instructions
@@ -56,14 +57,38 @@ func exit(msg string) {
 	log.Fatalf("%s: check args: %s\n\n", os.Args[0], msg)
 }
 
-// setByUser checks whether a specific flag was explicitly set by the user
-func setByUser(name string) (isSet bool) {
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			isSet = true
+func parseActualFlags(args []string) {
+	for s := 0; s < len(args); s++ {
+		arg := args[s]
+		switch arg[0] {
+		case '-':
+			if len(arg) == 1 {
+				break
+			} else if arg[1] != '-' { /* Vulgar UNIX command line options. */
+				for f := 0; f < len(arg[1:]); f++ {
+					sarg := arg[1:]
+					ActualFlags = append(ActualFlags,
+						getopt.CommandLine.Lookup(string(sarg[f])))
+				}
+				continue
+			} else if arg[1] == '-' && len(arg) > 2 { /* GNU-style long options. */
+				ActualFlags = append(ActualFlags,
+					getopt.CommandLine.Lookup(arg[2:]))
+			}
+		default:
+			continue
 		}
-	})
-	return
+	}
+}
+
+// setByUser checks whether a specific flag was explicitly set by the user
+func setByUser(name string) bool {
+	for _, f := range ActualFlags {
+		if f.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // processFile processes a single file (compression, decompression, or test)
@@ -268,12 +293,11 @@ func processFile(inFilePath string) error {
 			}
 
 			if *verbose {
-				bz := z
-				compratio := (float64(bz.InputOffset) / float64(bz.OutputOffset))
+				compratio := (float64(z.InputOffset) / float64(z.OutputOffset))
 				fmt.Fprintf(os.Stderr, "%6.3f:1, %6.3f bits/byte, %5.2f%% saved, %d in, %d out.\n",
 					compratio, ((1 / compratio) * 8),
 					(100 * (1 - (1 / compratio))),
-					bz.InputOffset, bz.OutputOffset)
+					z.InputOffset, z.OutputOffset)
 			}
 		}()
 
@@ -341,6 +365,9 @@ func main() {
 	// Parse command-line flags
 	getopt.Parse()
 
+	// Workaround for https://github.com/rsc/getopt/issues/2.
+	parseActualFlags(os.Args[1:])
+
 	// Check if someone has used '-#' for a compression level.
 	if !setByUser("l") {
 		for i := 1; i <= 9; i++ {
@@ -350,7 +377,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	// Validate compression level
 	if *level < 1 || *level > 9 {
 		exit("invalid compression level: must be between 1 and 9")
