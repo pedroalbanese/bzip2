@@ -39,8 +39,7 @@ var (
 	level      = flag.Int("l", 9, "compression level (1 = fastest, 9 = best)")
 	recursive  = flag.Bool("r", false, "operate recursively on directories")
 
-	ActualFlags []*flag.Flag
-	stdin       bool // Indicates if reading from standard input
+	stdin bool // Indicates if reading from standard input
 )
 
 // usage displays program usage instructions
@@ -58,38 +57,14 @@ func exit(msg string) {
 	log.Fatalf("%s: check args: %s\n\n", os.Args[0], msg)
 }
 
-func parseActualFlags(args []string) {
-	for s := 0; s < len(args); s++ {
-		arg := args[s]
-		switch arg[0] {
-		case '-':
-			if len(arg) == 1 {
-				break
-			} else if arg[1] != '-' { /* Vulgar UNIX command line options. */
-				for f := 0; f < len(arg[1:]); f++ {
-					sarg := arg[1:]
-					ActualFlags = append(ActualFlags,
-						getopt.CommandLine.Lookup(string(sarg[f])))
-				}
-				continue
-			} else if arg[1] == '-' && len(arg) > 2 { /* GNU-style long options. */
-				ActualFlags = append(ActualFlags,
-					getopt.CommandLine.Lookup(arg[2:]))
-			}
-		default:
-			continue
-		}
-	}
-}
-
 // setByUser checks whether a specific flag was explicitly set by the user
-func setByUser(name string) bool {
-	for _, f := range ActualFlags {
+func setByUser(name string) (isSet bool) {
+	flag.Visit(func(f *flag.Flag) {
 		if f.Name == name {
-			return true
+			isSet = true
 		}
-	}
-	return false
+	})
+	return
 }
 
 // processFile processes a single file (compression, decompression, or test)
@@ -341,10 +316,10 @@ func main() {
 	// Configure flags for compression levels (1–9)
 	for i := 1; i <= 9; i++ {
 		levelValue := i
-		explanation := fmt.Sprintf("set block size to %dk", (i * 100))
+		explanation := fmt.Sprintf("compression level %d", i)
 		if i == 9 {
 			explanation += " (default)"
-		}
+		}		
 		flag.BoolFunc(strconv.Itoa(i), explanation, func(string) error {
 			*level = levelValue
 			return nil
@@ -368,9 +343,6 @@ func main() {
 
 	// Parse command-line flags
 	getopt.Parse()
-
-	// Workaround for https://github.com/rsc/getopt/issues/2.
-	parseActualFlags(os.Args[1:])
 
 	// Check if someone has used '-#' for a compression level.
 	if !setByUser("l") {
@@ -398,19 +370,17 @@ func main() {
 		exit("invalid number of cores")
 	}
 
-	// From 'go doc runtime.GOMAXPROCS':
-	// "It defaults to the value of runtime.NumCPU.
-	// If n < 1, it does not change the current setting."
-	// In fact, if the default value of cores is zero, it
-	// will use all the cores of the machine.
-	runtime.GOMAXPROCS(*cores)
-
 	// Get list of files to process
 	files := flag.Args()
 	if len(files) == 0 {
 		files = []string{"-"} // default to stdin
 	}
 
+	// From 'go doc runtime.GOMAXPROCS':
+	// "It defaults to the value of runtime.NumCPU.
+	// If n < 1, it does not change the current setting."
+	// In fact, if the default value of cores is zero, it
+	// will use all the cores of the machine.
 	if *cores <= 0 {
 		*cores = runtime.NumCPU()
 	}
