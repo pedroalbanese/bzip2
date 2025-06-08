@@ -223,10 +223,6 @@ func processFile(inFilePath string) error {
 				defer inFile.Close()
 			}
 
-			if *verbose {
-				fmt.Fprintf(os.Stderr, "%s: ", inFile.Name())
-			}
-
 			_, err = io.Copy(pw, inFile)
 			if err != nil {
 				pw.CloseWithError(err)
@@ -260,7 +256,9 @@ func processFile(inFilePath string) error {
 		}
 
 		if *verbose && !*stdout {
-			fmt.Fprintln(os.Stderr, "done")
+			logMu.Lock()
+			fmt.Fprintf(os.Stderr, "%s: done\n", inFilePath)
+			logMu.Unlock()
 		}
 	} else { // File compression
 		go func() {
