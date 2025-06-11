@@ -149,14 +149,17 @@ func processFile(inFilePath string) error {
 					if len(outFileName) > len(fext) {
 						nstr := strings.SplitN(outFileName, ".", len(outFileName))
 						estr := strings.Join(nstr[0:len(nstr)-1], ".")
-						outFilePath = outFileDir + estr
+						outFilePath = (outFileDir + estr)
 					} else {
 						return fmt.Errorf("can't strip suffix .%s from file %s",
 							*suffix, inFilePath)
 					}
 				} else {
-					return fmt.Errorf("file %s doesn't have suffix .%s",
+					fmt.Fprintf(os.Stderr, "file %s doesn't have suffix .%s\n",
 						inFilePath, *suffix)
+					fmt.Fprintf(os.Stderr, "Can't guess original name for %s -- using %s.out\n",
+						inFilePath, inFilePath)
+					outFilePath = (outFileDir + outFileName + ".out")
 				}
 			} else {
 				if strings.HasSuffix(inFilePath, fext) {
