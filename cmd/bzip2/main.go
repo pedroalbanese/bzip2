@@ -142,20 +142,30 @@ func processFile(inFilePath string) error {
 			}
 
 			// Generates output file name
+			fext := ("." + *suffix)
 			if *decompress {
 				outFileDir, outFileName := path.Split(inFilePath)
-				if strings.HasSuffix(outFileName, "."+*suffix) {
-					if len(outFileName) > len("."+*suffix) {
+				if strings.HasSuffix(outFileName, fext) {
+					if len(outFileName) > len(fext) {
 						nstr := strings.SplitN(outFileName, ".", len(outFileName))
 						estr := strings.Join(nstr[0:len(nstr)-1], ".")
-						outFilePath = outFileDir + estr
+						outFilePath = (outFileDir + estr)
 					} else {
-						return fmt.Errorf("can't strip suffix .%s from file %s", *suffix, inFilePath)
+						return fmt.Errorf("can't strip suffix .%s from file %s",
+							*suffix, inFilePath)
 					}
 				} else {
-					return fmt.Errorf("file %s doesn't have suffix .%s", inFilePath, *suffix)
+					fmt.Fprintf(os.Stderr, "file %s doesn't have suffix .%s\n",
+						inFilePath, *suffix)
+					fmt.Fprintf(os.Stderr, "Can't guess original name for %s -- using %s.out\n",
+						inFilePath, inFilePath)
+					outFilePath = (outFileDir + outFileName + ".out")
 				}
 			} else {
+				if strings.HasSuffix(inFilePath, fext) {
+					return fmt.Errorf("Input file %s already has .%s suffix.",
+						inFilePath, *suffix)
+				}
 				outFilePath = inFilePath + "." + *suffix
 			}
 
