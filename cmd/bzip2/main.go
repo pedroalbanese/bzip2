@@ -21,7 +21,8 @@ import (
 	"sync"
 
 	"github.com/dsnet/compress/bzip2"
-	"rsc.io/getopt"
+	"github.com/mattn/go-isatty"
+	"pindorama.net.br/getopt"
 )
 
 // Command-line flags
@@ -59,7 +60,7 @@ func exit(msg string) {
 
 // setByUser checks whether a specific flag was explicitly set by the user
 func setByUser(name string) (isSet bool) {
-	flag.Visit(func(f *flag.Flag) {
+	getopt.Visit(func(f *flag.Flag) {
 		if f.Name == name {
 			isSet = true
 		}
@@ -115,14 +116,13 @@ func processFile(inFilePath string) error {
 	}
 
 	// Determines the input source (stdin or file)
-	if inFilePath == "-" { // read from stdin
+	if stdin {
 		if *stdout != true {
 			return fmt.Errorf("reading from stdin, can write only to stdout")
 		}
 		if setByUser("S") == true {
 			return fmt.Errorf("reading from stdin, suffix not needed")
 		}
-		stdin = true
 	} else { // read from file
 		f, err := os.Lstat(inFilePath)
 		if err != nil {
@@ -190,7 +190,7 @@ func processFile(inFilePath string) error {
 	pr, pw := io.Pipe()
 
 	var logMu sync.Mutex
-	
+
 	// File decompression
 	if *decompress {
 		go func() {
@@ -329,12 +329,14 @@ func main() {
 		explanation := fmt.Sprintf("set block size to %dk", (i * 100))
 		if i == 9 {
 			explanation += " (default)"
-		}		
+		}
 		flag.BoolFunc(strconv.Itoa(i), explanation, func(string) error {
 			*level = levelValue
 			return nil
 		})
 	}
+	_ = flag.Bool("s", false,
+		"use less memory; bogus option for backwards compatibility")
 
 	// Alias short flags with their long counterparts.
 	getopt.Aliases(
@@ -348,6 +350,7 @@ func main() {
 		"t", "test",
 		"v", "verbose",
 		"z", "compress",
+		"s", "small",
 		"h", "help",
 	)
 
@@ -384,6 +387,14 @@ func main() {
 	files := flag.Args()
 	if len(files) == 0 {
 		files = []string{"-"} // default to stdin
+		stdin = true          // read from stdin
+	}
+
+	// Make *stdout implicit if it is not a
+	// terminal, but just if also using stdin.
+	if !isatty.IsTerminal(os.Stdout.Fd()) &&
+		stdin && !*stdout {
+		*stdout = true
 	}
 
 	// From 'go doc runtime.GOMAXPROCS':
